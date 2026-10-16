@@ -6,12 +6,20 @@
     <meta name="description" content="面向贝类育苗流程的实时水质监测、异常预警、投放后跟踪与育苗池数据管理演示系统" />
     <meta name="theme-color" content="#010812" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <script>
+      (function () {
+        var query = new URLSearchParams(location.search);
+        var debug = "%MODE%" === "development" && ["splashTest", "splashAt", "splashPhase"].some(function (key) { return query.has(key); });
+        var state = window.__SPLASH_STATE__ = { key: "aqua-splash-seen-v1", debug: debug, seen: false, dismissed: false };
+        try { state.seen = !debug && localStorage.getItem(state.key) === "1"; } catch (_) {}
+        if (state.seen) document.documentElement.classList.add("splash-seen");
+      })();
+    </script>
     <link rel="stylesheet" href="./src/splash.css" />
     <title>贝类育苗水质监测平台</title>
   </head>
   <body>
     <div id="splash" data-mode="%MODE%" role="status" aria-live="polite" aria-label="正在进入贝类育苗水质监测平台">
-      <svg class="sc-clip-svg" width="0" height="0" aria-hidden="true"><defs><clipPath id="sc-scene-clip" clipPathUnits="userSpaceOnUse"><path id="sc-clip-left"/><path id="sc-clip-right"/></clipPath></defs></svg>
       <div class="sc-scene">
         <img class="sc-sky" src="./images/splash/sky.webp" alt="" aria-hidden="true" />
         <div class="sc-moon-glow" aria-hidden="true"></div>
@@ -35,7 +43,7 @@
         <div class="sc-wave sc-wave-left" aria-hidden="true"><img src="./images/splash/wave-left-v2.webp" alt="" /></div>
         <div class="sc-wave sc-wave-right" aria-hidden="true"><img src="./images/splash/wave-left-v2.webp" alt="" /></div>
         <div class="sc-copy"><h1>海上生明月</h1><p>以数据守护每一片海</p><small>CLEAN OCEAN · BRIGHTER TOMORROW</small></div>
-        <div class="sc-loader"><div>正在加载系统数据……</div><div class="sc-progress-row"><div class="sc-progress-track"><div class="sc-progress-fill"></div></div><span class="sc-progress-value">0%</span></div></div>
+        <div class="sc-loader" role="status">正在准备页面…</div>
         <div class="sc-footer"><span>让每一滴水，都更清澈</span><span>探索 · 监测 · 守护</span><span>数据 · 让海洋更可持续</span><span>汇聚六项指标 · 守护蔚蓝之海</span><span>通向更清澈的未来</span></div>
       </div>
       <button type="button" class="sc-skip" aria-label="跳过启动动画">跳过</button>

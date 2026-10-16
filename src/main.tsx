@@ -29,8 +29,16 @@ function App() {
   const [route, setRoute] = useState(currentRoute);
 
   useEffect(() => {
-    // 告知 index.html 内联加载层：应用已完成挂载，进度条可以放行
-    (window as unknown as { __APP_MOUNTED__?: boolean }).__APP_MOUNTED__ = true;
+    // 应用挂载后允许启动层退场，并记录提前跳过的访问。
+    const startup = window as unknown as {
+      __APP_MOUNTED__?: boolean;
+      __SPLASH_STATE__?: { key: string; debug: boolean; dismissed: boolean };
+    };
+    startup.__APP_MOUNTED__ = true;
+    const visit = startup.__SPLASH_STATE__;
+    if (visit?.dismissed && !visit.debug) {
+      try { localStorage.setItem(visit.key, "1"); } catch { /* Storage may be disabled. */ }
+    }
   }, []);
 
   useEffect(() => {

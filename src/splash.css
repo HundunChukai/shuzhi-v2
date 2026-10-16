@@ -1,11 +1,9 @@
 html,body{margin:0;min-height:100%;background:#010812}
 html.splash-lock,html.splash-lock body{overflow:hidden!important}
 html.splash-lock body{box-sizing:border-box;padding-right:var(--splash-scrollbar-width,0px)}
-#splash{--horizon:58%;--moon-size:188px;--moon-y:50%;--moon-scale:1;--moon-glow:0;--network:0;--data-tint:0;--orbit-opacity:0;--road-opacity:0;--progress:0;position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;overflow:hidden;color:#eefaff;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;user-select:none;isolation:isolate}
+#splash{--horizon:58%;--moon-size:188px;--moon-y:50%;--moon-scale:1;--moon-glow:0;--network:0;--data-tint:0;--orbit-opacity:0;--road-opacity:0;position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;overflow:hidden;color:#eefaff;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;user-select:none;isolation:isolate}
 #splash,#splash *{box-sizing:border-box}
-.sc-clip-svg{position:absolute;width:0;height:0;pointer-events:none}
-.sc-scene{position:absolute;inset:0;overflow:hidden;background:#010812;will-change:clip-path}
-.is-opening .sc-scene{clip-path:url(#sc-scene-clip)}
+.sc-scene{position:absolute;inset:0;overflow:hidden;background:#010812;will-change:opacity}
 .sc-sky{position:absolute;inset:0 0 auto;width:100%;height:var(--horizon);object-fit:cover;object-position:center bottom;pointer-events:none}
 .sc-moon-glow{position:absolute;z-index:1;top:var(--moon-y);left:50%;width:calc(var(--moon-size)*2.15);height:calc(var(--moon-size)*2.15);transform:translate(-50%,-50%) scale(var(--moon-scale));border-radius:50%;background:radial-gradient(circle,rgba(240,246,244,.18) 15%,rgba(166,198,218,.075) 43%,transparent 70%);filter:blur(13px);opacity:var(--moon-glow);pointer-events:none}
 .sc-moon{position:absolute;z-index:2;top:var(--moon-y);left:50%;width:var(--moon-size);height:var(--moon-size);transform:translate(-50%,-50%) scale(var(--moon-scale));transform-origin:center;will-change:transform;pointer-events:none}
@@ -34,12 +32,7 @@ html.splash-lock body{box-sizing:border-box;padding-right:var(--splash-scrollbar
 .sc-copy h1{margin:0;font:500 clamp(2rem,4vw,4.2rem)/1.25 "Noto Serif SC","Songti SC",SimSun,serif;letter-spacing:.22em;text-shadow:0 3px 14px rgba(205,228,244,.2)}
 .sc-copy p{margin:.6rem 0 0;color:rgba(236,248,255,.88);font-size:clamp(.86rem,1.3vw,1.1rem);letter-spacing:.2em}
 .sc-copy small{display:block;margin-top:.8rem;color:rgba(192,225,243,.75);font-size:clamp(.6rem,.78vw,.76rem);letter-spacing:.2em}
-.sc-loader{position:absolute;z-index:6;left:50%;width:clamp(195px,23vw,255px);transform:translateX(-50%);text-align:center;opacity:0;pointer-events:none}
-.sc-loader>div:first-child{margin-bottom:10px;color:rgba(230,248,255,.9);font-size:.76rem;letter-spacing:.11em}
-.sc-progress-row{display:flex;align-items:center;gap:9px}
-.sc-progress-track{flex:1;height:4px;border-radius:999px;overflow:hidden;background:rgba(15,60,97,.75)}
-.sc-progress-fill{width:100%;height:100%;border-radius:inherit;transform:scaleX(var(--progress));transform-origin:left;background:linear-gradient(90deg,#35bce9,#a2efff);box-shadow:0 0 7px #7ceaff}
-.sc-progress-value{min-width:34px;text-align:right;color:#b9efff;font:11px/1.2 sans-serif;font-variant-numeric:tabular-nums}
+.sc-loader{position:absolute;z-index:6;bottom:calc(max(5vh,env(safe-area-inset-bottom) + 18px) + 44px);left:50%;width:min(90vw,360px);transform:translateX(-50%);text-align:center;color:rgba(230,248,255,.9);font-size:.76rem;letter-spacing:.06em;text-shadow:0 2px 9px #010c1c;pointer-events:none}
 .sc-footer{position:absolute;z-index:6;bottom:max(5vh,calc(env(safe-area-inset-bottom) + 18px));left:50%;width:min(84vw,390px);height:29px;transform:translateX(-50%);text-align:center;color:rgba(230,246,255,.88);font-size:clamp(.75rem,1.05vw,.95rem);letter-spacing:.18em;text-shadow:0 2px 9px rgba(1,12,28,.9)}
 .sc-footer span{position:absolute;inset:0;display:block;opacity:0}
 .sc-footer:after{content:"";display:block;position:absolute;left:15%;bottom:0;width:70%;height:2px;background:linear-gradient(90deg,transparent,#62dfff 22% 78%,transparent);box-shadow:0 0 7px rgba(98,223,255,.5)}
@@ -47,11 +40,16 @@ html.splash-lock body{box-sizing:border-box;padding-right:var(--splash-scrollbar
 .sc-skip:hover{color:#fff;background:rgba(5,47,83,.82)}
 .sc-skip:focus-visible{outline:2px solid #7ee8ff;outline-offset:3px}
 .splash-leave{opacity:0;pointer-events:none;transition:opacity .36s ease}
-.sc-reduced .sc-water,.sc-reduced .sc-metrics,.sc-reduced .sc-orbits,.sc-reduced .sc-loader,.sc-reduced .sc-wave,.sc-reduced .sc-road{display:none!important}
+.sc-reduced .sc-water,.sc-reduced .sc-metrics,.sc-reduced .sc-orbits,.sc-reduced .sc-wave,.sc-reduced .sc-road{display:none!important}
 .sc-reduced .sc-moon{top:43%;transform:translate(-50%,-50%)!important}
 .sc-reduced .sc-moon-glow{top:43%}
 .sc-reduced .sc-copy{opacity:1!important}
 @media(max-width:680px){.sc-copy{top:max(14%,calc(env(safe-area-inset-top) + 65px))}.sc-copy h1{letter-spacing:.16em}.sc-node{width:clamp(55px,16vw,72px);height:clamp(55px,16vw,72px)}.sc-wave{width:68%;height:74%}.sc-footer{bottom:max(3vh,calc(env(safe-area-inset-bottom) + 13px))}}
 @media(max-height:540px) and (orientation:landscape){.sc-copy{top:8%}.sc-copy p,.sc-copy small{display:none}.sc-node{width:clamp(44px,12vh,62px);height:clamp(44px,12vh,62px)}.sc-footer{bottom:max(7px,env(safe-area-inset-bottom));font-size:.66rem}.sc-footer:after{bottom:4px}.sc-wave{height:78%}}
-@media(prefers-reduced-motion:reduce){.sc-water,.sc-metrics,.sc-orbits,.sc-loader,.sc-wave,.sc-road{display:none!important}.sc-moon{top:43%;transform:translate(-50%,-50%)!important}.sc-moon-glow{top:43%}.sc-copy{opacity:1!important}}
+@media(prefers-reduced-motion:reduce){.sc-water,.sc-metrics,.sc-orbits,.sc-wave,.sc-road{display:none!important}.sc-moon{top:43%;transform:translate(-50%,-50%)!important}.sc-moon-glow{top:43%}.sc-copy{opacity:1!important}}
 
+
+html.splash-seen #splash{display:none}
+.sc-reduced.splash-leave{transition-duration:.22s}
+@media(max-width:680px){.sc-loader{bottom:calc(max(3vh,env(safe-area-inset-bottom) + 13px) + 44px)}}
+@media(max-height:540px) and (orientation:landscape){.sc-loader{bottom:calc(max(7px,env(safe-area-inset-bottom)) + 36px);font-size:.7rem}}

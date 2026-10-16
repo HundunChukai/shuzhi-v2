@@ -4,6 +4,17 @@
   var splash = document.getElementById("splash");
   if (!splash) return;
 
+  var visit = window.__SPLASH_STATE__;
+  if (visit && visit.seen) { splash.remove(); return; }
+
+  function rememberVisit() {
+    if (!visit || visit.debug) return;
+    visit.dismissed = true;
+    if (window.__APP_MOUNTED__ === true) {
+      try { localStorage.setItem(visit.key, "1"); } catch (_) {}
+    }
+  }
+
   var scene = splash.querySelector(".sc-scene");
   var moon = splash.querySelector(".sc-moon");
   var moonImage = moon.querySelector("img");
@@ -18,10 +29,7 @@
   var footer = Array.prototype.slice.call(splash.querySelectorAll(".sc-footer span"));
   var copy = splash.querySelector(".sc-copy");
   var loader = splash.querySelector(".sc-loader");
-  var progressLabel = splash.querySelector(".sc-progress-value");
   var skipButton = splash.querySelector(".sc-skip");
-  var clipLeft = document.getElementById("sc-clip-left");
-  var clipRight = document.getElementById("sc-clip-right");
   var reduced = false;
   try { reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_) {}
 
@@ -41,11 +49,11 @@
   var context = null;
   try { if (testMode !== "canvasOff") context = canvas.getContext("2d", { alpha: true }); } catch (_) {}
   var startTime = performance.now();
-  var hiddenAt = 0;
+  var hiddenAt = document.hidden ? startTime : 0;
   var hiddenTotal = 0;
   var heldAt = 0;
   var heldTotal = 0;
-  var finishAt = 0;
+
   var frameId = 0;
   var exitTimer = 0;
   var width = 0;
@@ -62,7 +70,7 @@
   var glints = [];
   var trails = [];
   var lastStage = 0;
-  var progress = 0;
+
 
   var scrollbarProbe = document.createElement("div");
   scrollbarProbe.style.cssText = "position:absolute;left:-9999px;top:0;width:100px;height:100px;overflow:scroll";
@@ -178,6 +186,7 @@
         done = true;
         image.onload = null;
         image.onerror = null;
+        if (!image.naturalWidth) image.style.visibility = "hidden";
         if (image === seaImage) seaReady = image.naturalWidth > 0;
         if (image === moonImage && !image.naturalWidth) moon.classList.add("moon-failed");
         resolve();
@@ -235,42 +244,8 @@
     }
   }
 
-  function setOpening(amount) {
-    var open = ease(amount);
-    var middle = width / 2;
-    var topReveal = ease((open - .56) / .44);
-    var topGap = width * .57 * topReveal;
-    var horizonGap = width * .58 * open * open;
-    var bottomGap = width * .6 * Math.pow(open, .75);
-    var topY = horizon * (1 - topReveal);
-    var leftTop = middle - topGap;
-    var leftHorizon = middle - horizonGap;
-    var leftBottom = middle - bottomGap;
-    var rightTop = middle + topGap;
-    var rightHorizon = middle + horizonGap;
-    var rightBottom = middle + bottomGap;
-    clipLeft.setAttribute("d", "M0 0 H" + leftTop + " L" + leftTop + " " + topY + " Q" + (leftTop - horizonGap * .08) + " " + (horizon * .96) + " " + leftHorizon + " " + horizon + " C" + (leftHorizon - bottomGap * .38) + " " + (horizon + seaHeight * .26) + " " + (leftBottom + bottomGap * .3) + " " + (height * .79) + " " + leftBottom + " " + height + " H0 Z");
-    clipRight.setAttribute("d", "M" + width + " 0 H" + rightTop + " L" + rightTop + " " + topY + " Q" + (rightTop + horizonGap * .08) + " " + (horizon * .96) + " " + rightHorizon + " " + horizon + " C" + (rightHorizon + bottomGap * .38) + " " + (horizon + seaHeight * .26) + " " + (rightBottom - bottomGap * .3) + " " + (height * .79) + " " + rightBottom + " " + height + " H" + width + " Z");
-    if (open > 0 && !splash.classList.contains("is-opening")) splash.classList.add("is-opening");
-  }
-
-  function progressAt(t, time) {
-    var next;
-    if (t < 1000) next = mix(0, 18, ease(t / 1000));
-    else if (t < 3000) next = mix(18, 36, ease((t - 1000) / 2000));
-    else if (t < 4800) next = mix(36, 72, ease((t - 3000) / 1800));
-    else next = mix(72, 92, ease((t - 4800) / 1700));
-    if (t >= 6500 && isReady(time)) {
-      if (!finishAt) finishAt = time;
-      next = mix(92, 100, ease((time - finishAt) / 180));
-    }
-    progress = Math.max(progress, Math.min(100, next));
-    scene.style.setProperty("--progress", (progress / 100).toFixed(4));
-    progressLabel.textContent = Math.floor(progress) + "%";
-  }
-
   function isReady(time) {
-    return assetsReady && window.__APP_MOUNTED__ === true && testMode !== "timeout" && (testMode !== "slow" || time - startTime >= 8000);
+    return assetsReady && window.__APP_MOUNTED__ === true && testMode !== "timeout" && (testMode !== "slow" || time - startTime - hiddenTotal >= 8000);
   }
 
   function render(t, time) {
@@ -299,10 +274,11 @@
     scene.style.setProperty("--orbit-size", round(mix(ringSize * .82, moonSize * 1.9, converge)) + "px");
     scene.style.setProperty("--road-opacity", round(wallForm * .67 * (1 - opening * .4)));
 
-    var copyOpacity = 1 - ease((t - 900) / 400);
+    var copyOpacity = 1 - ease((t - 2200) / 600);
     copy.style.opacity = round(copyOpacity);
-    loader.style.opacity = round(ease((t - 4800) / 200) * (1 - ease((t - 6750) / 150)));
-    loader.style.top = Math.min(height - 105, globeY + moonSize * 1.23) + "px";
+    loader.style.opacity = round(1 - opening);
+    var statusText = isReady(time) ? "页面已就绪，即将进入" : "正在准备页面…";
+    if (loader.textContent !== statusText) loader.textContent = statusText;
     var fadeBoundaries = [1000, 3000, 4800, 6800];
     for (var f = 0; f < footer.length; f++) {
       var inValue = f === 0 ? 1 : ease((t - fadeBoundaries[f - 1] + 120) / 240);
@@ -310,7 +286,7 @@
       footer[f].style.opacity = round(inValue * outValue * (1 - opening));
     }
 
-    var ringY = horizon - moonSize * .97;
+    var ringY = moonY;
     for (var i = 0; i < metrics.length; i++) {
       var element = metrics[i];
       var rx = Number(element.style.getPropertyValue("--x"));
@@ -318,7 +294,7 @@
       var intro = ease((t - 3000 - i * 140) / 500);
       var gather = ease((t - 4800 - i * 105) / 1030);
       var fromX = rx * ringSize;
-      var fromY = ringY + ry * ringSize + (i === 5 ? moonSize * (width < 900 ? .39 : .2) : 0);
+      var fromY = ringY + ry * ringSize;
       var toX = rx * moonSize * .47;
       var toY = globeY + ry * moonSize * .47;
       var bend = Math.sin(Math.PI * gather);
@@ -337,9 +313,8 @@
     var waveRetreat = 120 * ease((opening - .2) / .8);
     waveLeft.style.transform = "translate3d(" + round(-12 * (1 - wallForm) - waveRetreat) + "%," + round(30 * (1 - wallForm)) + "%,0)";
     waveRight.style.transform = "translate3d(" + round(12 * (1 - wallForm) + waveRetreat) + "%," + round(30 * (1 - wallForm)) + "%,0)";
-    if (t >= 8100) setOpening((t - 8100) / 900);
-    progressAt(t, time);
-    try { drawSea(time, rise); } catch (_) { context = null; }
+    splash.style.opacity = round(1 - opening);
+    try { if (!reduced) drawSea(time - startTime - hiddenTotal, rise); } catch (_) { context = null; }
   }
 
   function cleanup() {
@@ -357,16 +332,18 @@
     splash.remove();
   }
 
-  function quickExit() {
+  function quickExit(remember) {
     if (leaving || removed) return;
+    if (remember) rememberVisit();
     leaving = true;
     cancelAnimationFrame(frameId);
     splash.classList.add("splash-leave");
+    splash.style.opacity = "0";
     exitTimer = window.setTimeout(cleanup, reduced ? 240 : 380);
   }
 
-  function skip() { quickExit(); }
-  function onKeydown(event) { if (event.key === "Escape" || event.key === "Esc") quickExit(); }
+  function skip() { quickExit(true); }
+  function onKeydown(event) { if (event.key === "Escape" || event.key === "Esc") skip(); }
   function onResize() {
     resize();
     if (!frozen && !removed && !leaving) {
@@ -389,9 +366,16 @@
 
   function frame(time) {
     if (removed || leaving || document.hidden) return;
-    var elapsed = time - startTime - hiddenTotal - heldTotal;
+    var foreground = time - startTime - hiddenTotal;
+    var elapsed = foreground - heldTotal;
     var ready = isReady(time);
-    if (elapsed >= 12000 && !ready) { quickExit(); return; }
+    if (foreground >= 12000) { quickExit(false); return; }
+    if (reduced) {
+      render(0, time);
+      if (foreground >= 350) { quickExit(true); return; }
+      frameId = requestAnimationFrame(frame);
+      return;
+    }
     if (elapsed >= 6500 && !ready) {
       if (!heldAt) heldAt = time;
       elapsed = 6500;
@@ -401,12 +385,13 @@
       elapsed = time - startTime - hiddenTotal - heldTotal;
     }
     render(Math.max(0, elapsed), time);
-    if (elapsed >= 9000) { cleanup(); return; }
+    if (elapsed >= 9000) { rememberVisit(); cleanup(); return; }
     frameId = requestAnimationFrame(frame);
   }
 
   try {
     if (testMode === "moonFail") moonImage.src = "./images/splash/missing-moon.webp";
+    if (reduced) splash.classList.add("sc-reduced");
     resize();
     preload();
     skipButton.addEventListener("click", skip);
@@ -415,9 +400,7 @@
     document.addEventListener("visibilitychange", onVisibility);
     if (frozen) {
       render(frozenAt, performance.now());
-    } else if (reduced) {
-      render(0, performance.now());
-      exitTimer = window.setTimeout(quickExit, 350);
+
     } else {
       frameId = requestAnimationFrame(frame);
     }
