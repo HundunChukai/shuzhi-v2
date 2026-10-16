@@ -10,7 +10,11 @@ function startApplication() {
   font.rel = "stylesheet";
   font.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap";
   font.media = "print";
-  font.onload = () => { font.media = "all"; };
+  const showFont = () => { font.media = "all"; };
+  font.onload = () => {
+    if (!document.getElementById("splash")) showFont();
+  };
+  if (visit) visit.showApp = showFont;
   document.head.appendChild(font);
 
   application = import("./main.tsx").catch((error) => {

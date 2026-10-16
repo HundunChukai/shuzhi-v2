@@ -74,6 +74,7 @@
   var warmupFrames = 0;
   var warmupStart = 0;
   var warmupLast = 0;
+  var applicationWarmup = 0;
   var playbackStart = null;
   var removed = false;
   var leaving = false;
@@ -343,6 +344,7 @@
     document.documentElement.classList.remove("splash-lock");
     document.documentElement.style.removeProperty("--splash-scrollbar-width");
     splash.remove();
+    if (visit && visit.showApp) visit.showApp();
   }
 
   function quickExit(remember) {
@@ -398,11 +400,15 @@
           splash.classList.add("sc-ready");
           warmupStart = time;
         }
-        warmupFrames = warmupLast && time - warmupLast <= 40 ? warmupFrames + 1 : 0;
-        warmupLast = time;
-        if ((time - warmupStart >= 100 && warmupFrames >= 4) || time - warmupStart >= 1000) {
-          playbackStart = foreground;
-          splash.dataset.playback = "running";
+        requestApplication();
+        if (isReady(time)) {
+          if (!applicationWarmup) applicationWarmup = time;
+          warmupFrames = warmupLast && time - warmupLast <= 40 ? warmupFrames + 1 : 0;
+          warmupLast = time;
+          if ((time - applicationWarmup >= 100 && warmupFrames >= 4) || time - applicationWarmup >= 1000) {
+            playbackStart = foreground;
+            splash.dataset.playback = "running";
+          }
         }
       }
       frameId = requestAnimationFrame(frame);

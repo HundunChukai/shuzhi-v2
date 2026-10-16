@@ -78,14 +78,14 @@ test('background duration pauses animation and does not count toward timeout',as
   const normal=await setup();normal.tick(2000);normal.hidden(true);normal.tick(20000);normal.hidden(false);normal.tick(6900);assert.equal(normal.splash.removed,undefined);normal.tick(300);normal.clean();
 });
 test('late readiness releases held animation without exceeding foreground cap',async()=>{
-  const s=await setup({ready:false});s.tick(8000);s.mount();s.tick(2600);s.clean();assert.equal(s.storage.size,1);
+  const s=await setup({ready:false});s.tick(8000);assert.equal(s.splash.dataset.playback,'preparing');s.mount();s.tick(140);assert.equal(s.splash.dataset.playback,'running');s.tick(9100);s.clean();assert.equal(s.storage.size,1);
 });
 test('system reduced motion finishes quickly; storage errors and image failures remain usable',async()=>{
   for(const options of [{reduced:true},{denied:true},{imageFailure:true}]){const s=await setup(options);s.tick(options.reduced?600:9200);s.clean();}
 });
 test('development test modes bypass saved visits and never persist',async()=>{
   for(const query of ['?splashTest=slow','?splashTest=timeout','?splashTest=canvasOff','?splashTest=reduced','?splashTest=moonFail']){
-    const s=await setup({query,seen:true});assert.notEqual(s.splash.removed,true);s.storage.clear();s.tick(12600);s.clean();assert.equal(s.storage.size,0);
+    const s=await setup({query,seen:true});assert.notEqual(s.splash.removed,true);s.storage.clear();s.tick(22000);s.clean();assert.equal(s.storage.size,0);
   }
 });
 
@@ -94,14 +94,14 @@ test('critical image decoding and painted warmup precede the animation clock',as
   assert.equal(s.splash.dataset.playback,'preparing');assert.equal(s.splash.classList.contains('sc-ready'),false);assert.equal(s.appRequests(),0);
   await s.decodeImages();s.tick(140);
   assert.equal(s.splash.dataset.playback,'running');assert.equal(s.splash.dataset.stage,'1');
-  assert.equal(s.nodes['.sc-copy'].style.opacity,1);assert.equal(s.appRequests(),0);
+  assert.equal(s.nodes['.sc-copy'].style.opacity,1);assert.equal(s.appRequests(),1);
   s.tick(9100);s.clean();
 });
 
-test('homepage initialization is requested once at the existing readiness hold',async()=>{
-  const s=await setup({ready:false});s.tick(6500);assert.equal(s.appRequests(),0);
-  s.tick(200);assert.equal(s.appRequests(),1);s.tick(1000);assert.equal(s.appRequests(),1);
-  s.mount();s.tick(4000);s.clean();
+test('homepage initialization completes during preparation before the animation clock starts',async()=>{
+  const s=await setup({ready:false});s.tick(1000);assert.equal(s.appRequests(),1);assert.equal(s.splash.dataset.playback,'preparing');
+  s.tick(1000);assert.equal(s.appRequests(),1);assert.equal(s.splash.dataset.stage,'1');
+  s.mount();s.tick(140);assert.equal(s.splash.dataset.playback,'running');s.tick(9100);s.clean();
 });
 
 test('skip during image decoding enters the application without showing a blank page',async()=>{
