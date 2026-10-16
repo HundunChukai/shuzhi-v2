@@ -7,6 +7,12 @@
   var visit = window.__SPLASH_STATE__;
   if (visit && visit.seen) { splash.remove(); return; }
 
+  function requestApplication() {
+    if (!visit || visit.appRequested) return;
+    visit.appRequested = true;
+    if (visit.startApp) visit.startApp();
+  }
+
   function rememberVisit() {
     if (!visit || visit.debug) return;
     visit.dismissed = true;
@@ -64,6 +70,11 @@
   var ringSize = 0;
   var seaReady = false;
   var assetsReady = false;
+  var sceneReady = false;
+  var warmupFrames = 0;
+  var warmupStart = 0;
+  var warmupLast = 0;
+  var playbackStart = null;
   var removed = false;
   var leaving = false;
   var trackedImages = [];
@@ -207,7 +218,9 @@
   function preload() {
     var entry = (location.hash || "").indexOf("#/main") === 0 ? "./images/system-main-ocean-v1.webp" : "./hero-reef-v2.webp";
     var entryImage = new Image();
-    var promises = [skyImage, moonImage, seaImage].concat(waveImages).map(function (image) { return trackImage(image); });
+    var critical = [skyImage, moonImage, seaImage].map(function (image) { return trackImage(image); });
+    Promise.all(critical).then(function () { sceneReady = true; });
+    var promises = critical.concat(waveImages.map(function (image) { return trackImage(image); }));
     promises.push(trackImage(entryImage, entry));
     Promise.all(promises).then(function () {
       assetsReady = true;
@@ -277,7 +290,7 @@
     var copyOpacity = 1 - ease((t - 2200) / 600);
     copy.style.opacity = round(copyOpacity);
     loader.style.opacity = round(1 - opening);
-    var statusText = isReady(time) ? "页面已就绪，即将进入" : "正在准备页面…";
+    var statusText = visit && visit.appFailed ? "页面加载失败，请刷新重试" : isReady(time) ? "页面已就绪，即将进入" : "正在准备页面…";
     if (loader.textContent !== statusText) loader.textContent = statusText;
     var fadeBoundaries = [1000, 3000, 4800, 6800];
     for (var f = 0; f < footer.length; f++) {
@@ -334,12 +347,21 @@
 
   function quickExit(remember) {
     if (leaving || removed) return;
+    requestApplication();
     if (remember) rememberVisit();
     leaving = true;
     cancelAnimationFrame(frameId);
-    splash.classList.add("splash-leave");
-    splash.style.opacity = "0";
-    exitTimer = window.setTimeout(cleanup, reduced ? 240 : 380);
+    function finish() {
+      if (window.__APP_MOUNTED__ !== true) {
+        if (visit && visit.appFailed) return;
+        exitTimer = window.setTimeout(finish, 50);
+        return;
+      }
+      splash.classList.add("splash-leave");
+      splash.style.opacity = "0";
+      exitTimer = window.setTimeout(cleanup, reduced ? 240 : 380);
+    }
+    finish();
   }
 
   function skip() { quickExit(true); }
@@ -367,9 +389,28 @@
   function frame(time) {
     if (removed || leaving || document.hidden) return;
     var foreground = time - startTime - hiddenTotal;
-    var elapsed = foreground - heldTotal;
+    var activeTime = playbackStart === null ? foreground : foreground - playbackStart;
+    if (activeTime >= 12000 && !(visit && visit.appFailed)) { quickExit(false); return; }
+    if (!reduced && playbackStart === null) {
+      if (sceneReady) {
+        if (!warmupStart) {
+          render(0, time);
+          splash.classList.add("sc-ready");
+          warmupStart = time;
+        }
+        warmupFrames = warmupLast && time - warmupLast <= 40 ? warmupFrames + 1 : 0;
+        warmupLast = time;
+        if ((time - warmupStart >= 100 && warmupFrames >= 4) || time - warmupStart >= 1000) {
+          playbackStart = foreground;
+          splash.dataset.playback = "running";
+        }
+      }
+      frameId = requestAnimationFrame(frame);
+      return;
+    }
+    var elapsed = reduced ? foreground : activeTime - heldTotal;
+    if (elapsed >= 6500 || reduced) requestApplication();
     var ready = isReady(time);
-    if (foreground >= 12000) { quickExit(false); return; }
     if (reduced) {
       render(0, time);
       if (foreground >= 350) { quickExit(true); return; }
@@ -382,7 +423,7 @@
     } else if (heldAt) {
       heldTotal += time - heldAt;
       heldAt = 0;
-      elapsed = time - startTime - hiddenTotal - heldTotal;
+      elapsed = activeTime - heldTotal;
     }
     render(Math.max(0, elapsed), time);
     if (elapsed >= 9000) { rememberVisit(); cleanup(); return; }
@@ -392,6 +433,7 @@
   try {
     if (testMode === "moonFail") moonImage.src = "./images/splash/missing-moon.webp";
     if (reduced) splash.classList.add("sc-reduced");
+    splash.dataset.playback = "preparing";
     resize();
     preload();
     skipButton.addEventListener("click", skip);
@@ -399,6 +441,7 @@
     window.addEventListener("resize", onResize, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
     if (frozen) {
+      splash.classList.add("sc-ready");
       render(frozenAt, performance.now());
 
     } else {

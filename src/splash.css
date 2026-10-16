@@ -4,6 +4,7 @@ html.splash-lock body{box-sizing:border-box;padding-right:var(--splash-scrollbar
 #splash{--horizon:58%;--moon-size:188px;--moon-y:50%;--moon-scale:1;--moon-glow:0;--network:0;--data-tint:0;--orbit-opacity:0;--road-opacity:0;position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;overflow:hidden;color:#eefaff;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;user-select:none;isolation:isolate}
 #splash,#splash *{box-sizing:border-box}
 .sc-scene{position:absolute;inset:0;overflow:hidden;background:#010812;will-change:opacity}
+#splash:not(.sc-ready):not(.sc-reduced) .sc-scene>:not(.sc-copy):not(.sc-loader){visibility:hidden}
 .sc-sky{position:absolute;inset:0 0 auto;width:100%;height:var(--horizon);object-fit:cover;object-position:center bottom;pointer-events:none}
 .sc-moon-glow{position:absolute;z-index:1;top:var(--moon-y);left:50%;width:calc(var(--moon-size)*2.15);height:calc(var(--moon-size)*2.15);transform:translate(-50%,-50%) scale(var(--moon-scale));border-radius:50%;background:radial-gradient(circle,rgba(240,246,244,.18) 15%,rgba(166,198,218,.075) 43%,transparent 70%);filter:blur(13px);opacity:var(--moon-glow);pointer-events:none}
 .sc-moon{position:absolute;z-index:2;top:var(--moon-y);left:50%;width:var(--moon-size);height:var(--moon-size);transform:translate(-50%,-50%) scale(var(--moon-scale));transform-origin:center;will-change:transform;pointer-events:none}

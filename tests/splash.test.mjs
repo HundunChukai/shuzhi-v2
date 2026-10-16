@@ -8,8 +8,10 @@ const bootstrap = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const source = fs.readFileSync('src/splash.js', 'utf8');
 const mounted = fs.readFileSync('src/main.tsx', 'utf8').match(/    startup.__APP_MOUNTED__[\s\S]*?(?=\n  }, \[\]\);)/)[0];
 
-async function setup({ query = '', seen = false, ready = true, reduced = false, denied = false, mode = 'development', imageFailure = false } = {}) {
+async function setup({ query = '', seen = false, ready = true, reduced = false, denied = false, mode = 'development', imageFailure = false, delayedImages = false } = {}) {
   let now = 100, id = 0, canvasCalls = 0;
+  let appRequests = 0;
+  const imageDecoders = [];
   const frames = new Map(), timers = new Map(), storage = new Map(seen ? [['aqua-splash-seen-v1', '1']] : []);
   class Element {
     constructor() {
@@ -18,6 +20,7 @@ async function setup({ query = '', seen = false, ready = true, reduced = false, 
       const classes = new Set(); this.classList = { add: x=>classes.add(x), remove: x=>classes.delete(x), contains: x=>classes.has(x) };
       this.complete = true; this.naturalWidth = imageFailure ? 0 : 100; this.naturalHeight = 100;
       this.offsetWidth = 100; this.clientWidth = 85;
+      if (delayedImages) this.decode = () => new Promise(resolve => imageDecoders.push(resolve));
     }
     addEventListener(k,fn) { this.listeners.set(k,fn); }
     removeEventListener(k) { this.listeners.delete(k); }
@@ -44,10 +47,12 @@ async function setup({ query = '', seen = false, ready = true, reduced = false, 
     clearTimeout:id=>timers.delete(id)});
   window.setTimeout=(fn,ms)=>{timers.set(++id,{fn,at:now+ms});return id;};
   vm.runInContext(bootstrap.replaceAll('%MODE%',mode),context);
+  window.__SPLASH_STATE__.startApp = () => { appRequests++; };
   vm.runInContext(source,context);
   await new Promise(resolve=>setImmediate(resolve));
   function tick(ms) { const end=now+ms; while(now<end) {now=Math.min(end,now+20);const batch=[...frames.values()];frames.clear();batch.forEach(fn=>fn(now));for(const [key,t] of timers)if(t.at<=now){timers.delete(key);t.fn();}} }
-  return {splash,nodes,window,document,storage,frames,timers,tick,canvasCalls:()=>canvasCalls,
+  return {splash,nodes,window,document,storage,frames,timers,tick,canvasCalls:()=>canvasCalls,appRequests:()=>appRequests,
+    async decodeImages(){imageDecoders.splice(0).forEach(resolve=>resolve());await new Promise(resolve=>setImmediate(resolve));},
     mount(){ context.startup=window;vm.runInContext(mounted,context); },
     hidden(value){document.hidden=value;document.emit('visibilitychange');},
     clean(){assert.equal(splash.removed,true);assert.equal(document.documentElement.classList.contains('splash-lock'),false);assert.equal(frames.size,0);assert.equal(timers.size,0);assert.equal(window.listeners.size,0);assert.equal(document.listeners.size,0);assert.equal(nodes['.sc-skip'].listeners.size,0);}
@@ -56,32 +61,54 @@ async function setup({ query = '', seen = false, ready = true, reduced = false, 
 
 test('normal completion remembers; bootstrap suppresses next visit before initialization',async()=>{
   const s=await setup();s.tick(2100);assert.equal(s.nodes['.sc-copy'].style.opacity,1);assert.match(s.nodes['.sc-loader'].textContent,/已就绪/);
-  s.tick(6900);s.clean();assert.equal(s.storage.get('aqua-splash-seen-v1'),'1');
+  s.tick(7100);s.clean();assert.equal(s.storage.get('aqua-splash-seen-v1'),'1');
   const next=await setup({seen:true});next.clean();assert.equal(next.canvasCalls(),0);assert.equal(next.document.documentElement.classList.contains('splash-seen'),true);
 });
 test('skip and Escape release all animation resources and remember',async()=>{
   for(const key of ['click','Escape']) {const s=await setup();if(key==='click')s.nodes['.sc-skip'].emit('click');else s.window.emit('keydown',{key});s.tick(400);s.clean();assert.equal(s.storage.size,1);}
 });
 test('early skip saves only after application mounts',async()=>{
-  const s=await setup({ready:false});s.nodes['.sc-skip'].emit('click');s.tick(400);s.clean();assert.equal(s.storage.size,0);s.mount();assert.equal(s.storage.size,1);
+  const s=await setup({ready:false});s.nodes['.sc-skip'].emit('click');s.tick(400);assert.equal(s.splash.removed,undefined);assert.equal(s.appRequests(),1);assert.equal(s.storage.size,0);s.mount();s.tick(450);s.clean();assert.equal(s.storage.size,1);
 });
-test('unready timeout exits without marking seen',async()=>{
-  const s=await setup({ready:false});s.tick(11980);assert.equal(s.splash.removed,undefined);assert.match(s.nodes['.sc-loader'].textContent,/正在准备/);s.tick(420);s.clean();assert.equal(s.storage.size,0);s.mount();assert.equal(s.storage.size,0);
+test('unready timeout waits for the application without marking the visit seen',async()=>{
+  const s=await setup({ready:false});s.tick(12400);assert.equal(s.splash.removed,undefined);assert.match(s.nodes['.sc-loader'].textContent,/正在准备/);assert.equal(s.appRequests(),1);s.mount();s.tick(450);s.clean();assert.equal(s.storage.size,0);
 });
 test('background duration pauses animation and does not count toward timeout',async()=>{
-  const s=await setup({ready:false});s.tick(7000);s.hidden(true);s.tick(30000);assert.equal(s.splash.removed,undefined);s.hidden(false);s.tick(4980);assert.equal(s.splash.removed,undefined);s.tick(420);s.clean();
-  const normal=await setup();normal.tick(2000);normal.hidden(true);normal.tick(20000);normal.hidden(false);normal.tick(6900);assert.equal(normal.splash.removed,undefined);normal.tick(100);normal.clean();
+  const s=await setup({ready:false});s.tick(7000);s.hidden(true);s.tick(30000);assert.equal(s.splash.removed,undefined);s.hidden(false);s.tick(4980);assert.equal(s.splash.removed,undefined);s.tick(420);s.mount();s.tick(450);s.clean();
+  const normal=await setup();normal.tick(2000);normal.hidden(true);normal.tick(20000);normal.hidden(false);normal.tick(6900);assert.equal(normal.splash.removed,undefined);normal.tick(300);normal.clean();
 });
 test('late readiness releases held animation without exceeding foreground cap',async()=>{
   const s=await setup({ready:false});s.tick(8000);s.mount();s.tick(2600);s.clean();assert.equal(s.storage.size,1);
 });
 test('system reduced motion finishes quickly; storage errors and image failures remain usable',async()=>{
-  for(const options of [{reduced:true},{denied:true},{imageFailure:true}]){const s=await setup(options);s.tick(options.reduced?600:9000);s.clean();}
+  for(const options of [{reduced:true},{denied:true},{imageFailure:true}]){const s=await setup(options);s.tick(options.reduced?600:9200);s.clean();}
 });
 test('development test modes bypass saved visits and never persist',async()=>{
   for(const query of ['?splashTest=slow','?splashTest=timeout','?splashTest=canvasOff','?splashTest=reduced','?splashTest=moonFail']){
-    const s=await setup({query,seen:true});assert.notEqual(s.splash.removed,true);s.storage.clear();s.tick(12400);s.clean();assert.equal(s.storage.size,0);
+    const s=await setup({query,seen:true});assert.notEqual(s.splash.removed,true);s.storage.clear();s.tick(12600);s.clean();assert.equal(s.storage.size,0);
   }
+});
+
+test('critical image decoding and painted warmup precede the animation clock',async()=>{
+  const s=await setup({delayedImages:true});s.tick(5000);
+  assert.equal(s.splash.dataset.playback,'preparing');assert.equal(s.splash.classList.contains('sc-ready'),false);assert.equal(s.appRequests(),0);
+  await s.decodeImages();s.tick(140);
+  assert.equal(s.splash.dataset.playback,'running');assert.equal(s.splash.dataset.stage,'1');
+  assert.equal(s.nodes['.sc-copy'].style.opacity,1);assert.equal(s.appRequests(),0);
+  s.tick(9100);s.clean();
+});
+
+test('homepage initialization is requested once at the existing readiness hold',async()=>{
+  const s=await setup({ready:false});s.tick(6500);assert.equal(s.appRequests(),0);
+  s.tick(200);assert.equal(s.appRequests(),1);s.tick(1000);assert.equal(s.appRequests(),1);
+  s.mount();s.tick(4000);s.clean();
+});
+
+test('skip during image decoding enters the application without showing a blank page',async()=>{
+  const s=await setup({ready:false,delayedImages:true});s.nodes['.sc-skip'].emit('click');s.tick(1000);
+  assert.equal(s.appRequests(),1);assert.equal(s.splash.removed,undefined);
+  s.hidden(true);s.tick(1000);s.mount();s.hidden(false);s.tick(450);s.clean();
+  await s.decodeImages();assert.equal(s.frames.size,0);
 });
 test('production ignores debug parameters; frozen development preview stays open',async()=>{
   const prod=await setup({query:'?splashAt=2100',seen:true,mode:'production'});prod.clean();
